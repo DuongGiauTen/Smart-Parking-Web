@@ -1,0 +1,22 @@
+{
+  "name": "bkparking-backend",
+  "version": "1.0.0",
+  "description": "BKParking Backend API",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "build": "echo \"No backend build step needed\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {},
+  "keywords": ["parking", "api", "express"],
+  "author": "",
+  "license": "MIT"
+}
