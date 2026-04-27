@@ -2,7 +2,7 @@
 // BKPAY - Payment page showing pending sessions
 // ============================================================
 import { useState } from 'react'
-import { useAuth } from '../../AuthContext'
+import { useAuth } from '../auth/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 

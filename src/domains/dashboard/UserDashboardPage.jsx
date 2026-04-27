@@ -1,7 +1,7 @@
 // ============================================================
 // USER HOME - Desktop Dashboard Overview
 // ============================================================
-import { useAuth } from '../../AuthContext'
+import { useAuth } from '../auth/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
 export default function UserHome() {

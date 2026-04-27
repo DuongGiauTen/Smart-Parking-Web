@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useAuth } from '../../AuthContext'
+import { useAuth } from '../auth/AuthContext'
 import bkLogo from '../../assets/bk.png'
 
 export default function BKPayGateway() {

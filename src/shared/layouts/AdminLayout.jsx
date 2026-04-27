@@ -1,19 +1,25 @@
 // ============================================================
-// USER LAYOUT - Desktop Sidebar + TopNav
+// ADMIN LAYOUT - Desktop flex sidebar + TopNav
 // ============================================================
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../AuthContext'
+import { useAuth } from '../../domains/auth/AuthContext'
 import { useState } from 'react'
-import bkLogo from '../assets/bk.png'
+import bkLogo from '../../assets/bk.png'
 
-const USER_NAV = [
-  { path: '/user',         icon: 'dashboard',               label: 'Tổng quan', exact: true },
-  { path: '/user/map',     icon: 'map',                     label: 'Bản đồ bãi xe' },
-  { path: '/user/pay',     icon: 'payments',                label: 'Thanh toán BKPay' },
-  { path: '/user/history', icon: 'history',                 label: 'Lịch sử thanh toán' },
-  { path: '/user/profile', icon: 'account_circle',          label: 'Hồ sơ cá nhân' },
+const NAV_ITEMS = [
+  { path: '/dashboard',   icon: 'dashboard',                label: 'Tổng quan' },
+  { path: '/gate-entry',  icon: 'login',                    label: 'Vận hành Cổng Vào' },
+  { path: '/gate-exit',   icon: 'logout',                   label: 'Vận hành Cổng Ra' },
+  { path: '/parking-map', icon: 'map',                      label: 'Bản đồ / IoT' },
+  { path: '/signage',     icon: 'developer_board',          label: 'Biển báo Điện tử LED' },
+  { path: '/iot-devices', icon: 'router',                   label: 'Quản lý Thiết bị' },
+  { path: '/pricing',     icon: 'sell',                     label: 'Bảng giá / Gói cước' },
+  { path: '/revenue',     icon: 'bar_chart',                label: 'Kiểm soát doanh thu' },
+  { path: '/users',       icon: 'group',                    label: 'Danh sách Người dùng' },
+  { path: '/profile',     icon: 'badge',                    label: 'Hồ sơ cá nhân' },
 ]
 
+// Sidebar markup as a function that returns JSX – defined OUTSIDE the component
 function SidebarContent({ onLogout, onNavClick, collapsed }) {
   return (
     <>
@@ -34,12 +40,11 @@ function SidebarContent({ onLogout, onNavClick, collapsed }) {
       <nav className={`flex-1 overflow-y-auto py-4 no-scrollbar space-y-1 ${collapsed ? 'px-2' : 'px-4'}`}>
         {!collapsed && (
           <div className="text-[10px] font-bold tracking-widest text-slate-500 uppercase px-3 mb-4 whitespace-nowrap">
-            Dịch vụ
+            Bảng chức năng
           </div>
         )}
-        {USER_NAV.map(item => (
+        {NAV_ITEMS.map(item => (
           <NavLink key={item.path} to={item.path}
-             end={item.exact}
             className={({ isActive }) => `flex items-center rounded-xl text-sm font-bold transition-all duration-200 ${collapsed ? 'justify-center py-4 mb-2' : 'gap-3 px-3 py-3'} ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
             title={collapsed ? item.label : undefined}
             onClick={onNavClick}
@@ -61,8 +66,8 @@ function SidebarContent({ onLogout, onNavClick, collapsed }) {
   )
 }
 
-export default function UserLayout() {
-  const { logout } = useAuth()
+export default function AdminLayout() {
+  const { auth, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -71,7 +76,7 @@ export default function UserLayout() {
   const handleLogout = () => { logout(); navigate('/login') }
 
   const sidebarWidth = collapsed ? 80 : 260
-
+  
   const sidebarStyle = {
     width: sidebarWidth, minWidth: sidebarWidth, maxWidth: sidebarWidth,
     height: '100%',
@@ -84,21 +89,29 @@ export default function UserLayout() {
   }
 
   return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: '#f8fafc' }}>
+    /* Full-screen flex row */
+    <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+
+      {/* ── DESKTOP SIDEBAR (visible ≥ 1024px) ── */}
       <aside style={sidebarStyle} id="desktop-sidebar">
         <SidebarContent onLogout={handleLogout} onNavClick={() => {}} collapsed={collapsed} />
       </aside>
 
+      {/* ── MOBILE OVERLAY ── */}
       {mobileOpen && (
         <>
-          <div onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 98, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)' }} />
-          <aside style={{ ...sidebarStyle, width: 260, position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 99, animation: 'fadeInPage 0.2s ease' }}>
+          <div onClick={() => setMobileOpen(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 98, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(3px)' }} />
+          <aside style={{ ...sidebarStyle, width: 260, position: 'fixed', left: 0, top: 0, bottom: 0, height: '100%', zIndex: 99, animation: 'fadeInPage 0.2s ease' }}>
             <SidebarContent onLogout={handleLogout} onNavClick={() => setMobileOpen(false)} collapsed={false} />
           </aside>
         </>
       )}
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+      {/* ── MAIN COLUMN ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, background: '#f7f9fc' }}>
+
+        {/* Top Nav */}
         <header style={{
           height: 70, flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24,
@@ -117,7 +130,7 @@ export default function UserLayout() {
               <span className="material-symbols-outlined" style={{ fontSize: 24 }}>{collapsed ? 'menu_open' : 'menu'}</span>
             </button>
             <h1 className="desktop-header-title" style={{ fontFamily: "Inter, sans-serif", fontSize: 20, fontWeight: 800, color: '#fff', margin: 0, whiteSpace: 'nowrap' }}>
-               {USER_NAV.find(n => (n.exact ? location.pathname === n.path : location.pathname.startsWith(n.path)))?.label || 'Tổng quan'}
+               {NAV_ITEMS.find(n => (location.pathname.startsWith(n.path)))?.label || 'Tổng quan'}
             </h1>
           </div>
 
@@ -134,12 +147,12 @@ export default function UserLayout() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexShrink: 0 }}>
             <button style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', position: 'relative', display: 'flex' }}>
               <span className="material-symbols-outlined" style={{ color: '#fff', fontSize: 26, fontVariationSettings: "'FILL' 1" }}>chat</span>
-              <span style={{ position: 'absolute', top: -2, right: -4, width: 8, height: 8, background: '#ef4444', borderRadius: '50%', border: '2px solid #003d9b' }} />
+              <span style={{ position: 'absolute', top: -2, right: -4, width: 8, height: 8, background: '#ef4444', borderRadius: '50%', border: '2px solid #1e3a8a' }} />
             </button>
 
             <button style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', position: 'relative', display: 'flex' }}>
               <span className="material-symbols-outlined" style={{ color: '#fff', fontSize: 28, fontVariationSettings: "'FILL' 1" }}>notifications</span>
-              <span style={{ position: 'absolute', top: 2, right: 3, width: 8, height: 8, background: '#ef4444', borderRadius: '50%', border: '2px solid #003d9b' }} />
+              <span style={{ position: 'absolute', top: 2, right: 3, width: 8, height: 8, background: '#ef4444', borderRadius: '50%', border: '2px solid #1e3a8a' }} />
             </button>
             
             <button style={{ padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex' }}>
@@ -150,23 +163,25 @@ export default function UserLayout() {
             
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }}>Minh Nguyễn</div>
-                <div style={{ fontSize: 12, color: '#93c5fd', fontWeight: 500 }}>MSSV: 2110432</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }}>{auth?.name || 'Trần Minh Hoàng'}</div>
+                <div style={{ fontSize: 12, color: '#93c5fd', fontWeight: 500 }}>{auth?.title || 'Quản trị viên'}</div>
               </div>
               <div style={{ width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', background: 'rgba(255,255,255,0.1)', flexShrink: 0, border: '2px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src="https://ui-avatars.com/api/?name=Minh+Nguyen&background=1e3a8a&color=fff&size=128" alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <span className="material-symbols-outlined" style={{ color: '#fff', fontSize: 24 }}>account_circle</span>
               </div>
             </div>
           </div>
         </header>
 
-        <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '32px' }} className="no-scrollbar">
+        {/* Page content */}
+        <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }} className="no-scrollbar">
           <div className="page-enter" key={location.pathname}>
             <Outlet />
           </div>
         </main>
       </div>
 
+      {/* Responsive overrides */}
       <style>{`
         @media (max-width: 768px) {
           #desktop-sidebar { display: none !important; }

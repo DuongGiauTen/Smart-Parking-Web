@@ -1,24 +1,24 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './AuthContext'
-import Landing from './pages/Landing'
-import LoginPage from './pages/LoginPage'
-import AdminLayout from './layouts/AdminLayout'
-import UserLayout from './layouts/UserLayout'
-import Dashboard from './pages/admin/Dashboard'
-import ParkingMap from './pages/admin/ParkingMap'
-import IoTDevices from './pages/admin/IoTDevices'
-import Pricing from './pages/admin/Pricing'
-import Revenue from './pages/admin/Revenue'
-import Users from './pages/admin/Users'
-import GateEntry from './pages/admin/GateEntry'
-import GateExit from './pages/admin/GateExit'
-import BKPay from './pages/user/BKPay'
-import UserHome from './pages/user/UserHome'
-import UserParking from './pages/user/UserParking'
-import UserHistory from './pages/user/UserHistory'
-import BKPayGateway from './pages/user/BKPayGateway'
-import Profile from './pages/Profile'
-import Signage from './pages/admin/Signage'
+import { AuthProvider, useAuth } from './domains/auth/AuthContext'
+import Landing from './domains/landing/LandingPage'
+import LoginPage from './domains/auth/LoginPage'
+import AdminLayout from './shared/layouts/AdminLayout'
+import UserLayout from './shared/layouts/UserLayout'
+import AdminDashboardPage from './domains/dashboard/AdminDashboardPage'
+import ParkingMapPage from './domains/parking/ParkingMapPage'
+import IoTDevicesPage from './domains/iot/IoTDevicesPage'
+import PricingPage from './domains/payment/PricingPage'
+import RevenuePage from './domains/payment/RevenuePage'
+import UsersPage from './domains/user-management/UsersPage'
+import GateEntryPage from './domains/parking/GateEntryPage'
+import GateExitPage from './domains/parking/GateExitPage'
+import BKPayPage from './domains/payment/BKPayPage'
+import UserDashboardPage from './domains/dashboard/UserDashboardPage'
+import UserParkingPage from './domains/parking/UserParkingPage'
+import UserHistoryPage from './domains/activity/UserHistoryPage'
+import BKPayGatewayPage from './domains/payment/BKPayGatewayPage'
+import ProfilePage from './domains/auth/ProfilePage'
+import SignagePage from './domains/iot/SignagePage'
 function ProtectedAdmin({ children }) {
   const { auth, isAdmin } = useAuth()
   if (!auth) return <Navigate to="/login" replace />
@@ -48,28 +48,28 @@ export default function App() {
 
           {/* ADMIN ROUTES */}
           <Route path="/" element={<ProtectedAdmin><AdminLayout /></ProtectedAdmin>}>
-            <Route path="dashboard"   element={<Dashboard />} />
-            <Route path="gate-entry"  element={<GateEntry />} />
-            <Route path="gate-exit"   element={<GateExit />} />
-            <Route path="parking-map" element={<ParkingMap />} />
-            <Route path="iot-devices" element={<IoTDevices />} />
-            <Route path="pricing"     element={<Pricing />} />
-            <Route path="revenue"     element={<Revenue />} />
-            <Route path="users"       element={<Users />} />
-            <Route path="profile"     element={<Profile />} />
-            <Route path="signage"     element={<Signage />} />
+            <Route path="dashboard"   element={<AdminDashboardPage />} />
+            <Route path="gate-entry"  element={<GateEntryPage />} />
+            <Route path="gate-exit"   element={<GateExitPage />} />
+            <Route path="parking-map" element={<ParkingMapPage />} />
+            <Route path="iot-devices" element={<IoTDevicesPage />} />
+            <Route path="pricing"     element={<PricingPage />} />
+            <Route path="revenue"     element={<RevenuePage />} />
+            <Route path="users"       element={<UsersPage />} />
+            <Route path="profile"     element={<ProfilePage />} />
+            <Route path="signage"     element={<SignagePage />} />
           </Route>
 
           {/* USER ROUTES */}
           <Route path="/user" element={<ProtectedUser><UserLayout /></ProtectedUser>}>
-            <Route index element={<UserHome />} />
-            <Route path="map"     element={<UserParking />} />
-            <Route path="pay"     element={<BKPay />} />
-            <Route path="history" element={<UserHistory />} />
-            <Route path="profile" element={<Profile />} />
+            <Route index element={<UserDashboardPage />} />
+            <Route path="map"     element={<UserParkingPage />} />
+            <Route path="pay"     element={<BKPayPage />} />
+            <Route path="history" element={<UserHistoryPage />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
 
-          <Route path="/bkpay-gateway" element={<ProtectedUser><BKPayGateway /></ProtectedUser>} />
+          <Route path="/bkpay-gateway" element={<ProtectedUser><BKPayGatewayPage /></ProtectedUser>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

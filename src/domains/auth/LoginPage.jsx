@@ -3,8 +3,8 @@
 // ============================================================
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../AuthContext'
-import bkLogo from '../assets/bk.png'
+import { useAuth } from './AuthContext'
+import bkLogo from '../../assets/bk.png'
 
 export default function LoginPage() {
   const { login, auth } = useAuth()

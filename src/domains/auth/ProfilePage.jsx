@@ -1,4 +1,4 @@
-import { useAuth } from '../AuthContext'
+import { useAuth } from './AuthContext'
 
 export default function Profile() {
   const { auth } = useAuth()
