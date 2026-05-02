@@ -5,33 +5,33 @@ const API_BASE_URL = 'http://localhost:5000/api'
 
 export const authService = {
   login: async (email, password) => {
-    // Mock login for now
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email === 'admin@bkparking.com' && password === 'admin123') {
-          resolve({
-            user: { id: 1, name: 'Admin User', email, role: 'admin' },
-            token: 'mock-jwt-token'
-          })
-        } else if (email === 'user@bkparking.com' && password === 'user123') {
-          resolve({
-            user: { id: 2, name: 'Regular User', email, role: 'user' },
-            token: 'mock-jwt-token'
-          })
-        } else {
-          reject(new Error('Invalid credentials'))
-        }
-      }, 1000)
-    })
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!response.ok) {
+      throw new Error('Login failed');
+    }
+    return response.json();
   },
 
   logout: async () => {
-    // Mock logout
+    // For now, just resolve
     return Promise.resolve()
   },
 
-  getCurrentUser: async () => {
-    // Mock get current user
-    return Promise.resolve(null)
+  getCurrentUser: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to get user');
+    }
+    return response.json();
   }
 }

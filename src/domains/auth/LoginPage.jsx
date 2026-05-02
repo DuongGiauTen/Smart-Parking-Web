@@ -38,14 +38,17 @@ export default function LoginPage() {
 
   // Auto-redirect if logged in
   if (auth) {
-    navigate(auth.role === 'admin' ? '/dashboard' : '/user', { replace: true })
+    if (auth.role === 'admin') navigate('/dashboard', { replace: true })
+    else if (auth.role === 'staff') navigate('/staff', { replace: true })
+    else navigate('/user', { replace: true })
     return null
   }
 
   const fillDemo = (r) => {
     setRole(r)
     if (r === 'admin') { setEmail('admin@hcmut.edu.vn'); setPassword('admin123') }
-    else               { setEmail('user@hcmut.edu.vn');  setPassword('user123') }
+    else if (r === 'staff') { setEmail('staff@hcmut.edu.vn'); setPassword('staff123') }
+    else { setEmail('user@hcmut.edu.vn'); setPassword('user123') }
     setError('')
   }
 
@@ -56,7 +59,9 @@ export default function LoginPage() {
     await new Promise(r => setTimeout(r, 600))
     const result = login(email, password)
     if (result.success) {
-      navigate(result.role === 'admin' ? '/dashboard' : '/user', { replace: true })
+      if (result.role === 'admin') navigate('/dashboard', { replace: true })
+      else if (result.role === 'staff') navigate('/staff', { replace: true })
+      else navigate('/user', { replace: true })
     } else {
       setError('Email hoặc mật khẩu không đúng. Vui lòng thử lại.')
       setLoading(false)
@@ -116,7 +121,7 @@ export default function LoginPage() {
 
           {/* Role Tabs */}
           <div style={{ display: 'flex', padding: 5, background: '#f1f5f9', borderRadius: 14, marginBottom: 24, gap: 4 }}>
-            {[['user', 'person', 'Người dùng'], ['admin', 'admin_panel_settings', 'Quản trị viên']].map(([r, icon, label]) => (
+            {[['user', 'person', 'Người dùng'], ['staff', 'engineering', 'Nhân viên'], ['admin', 'admin_panel_settings', 'Quản trị viên']].map(([r, icon, label]) => (
               <button key={r} onClick={() => fillDemo(r)} type="button" style={{
                 flex: 1, padding: '10px 12px', fontSize: 13, fontWeight: 700, borderRadius: 10, border: 'none', cursor: 'pointer',
                 transition: 'all 0.25s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -136,7 +141,7 @@ export default function LoginPage() {
             <span className="material-symbols-outlined" style={{ color: '#2563eb', fontSize: 18 }}>school</span>
             <div style={{ fontSize: 12, color: '#1d4ed8', lineHeight: 1.5 }}>
               <span style={{ fontWeight: 600 }}>Tài khoản DEMO:</span><br/>
-              {role === 'admin' ? 'admin@hcmut.edu.vn / admin123' : 'user@hcmut.edu.vn / user123'}
+              {role === 'admin' ? 'admin@hcmut.edu.vn / admin123' : role === 'staff' ? 'staff@hcmut.edu.vn / staff123' : 'user@hcmut.edu.vn / user123'}
             </div>
           </div>
 

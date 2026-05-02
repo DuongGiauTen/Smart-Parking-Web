@@ -6,7 +6,7 @@ import { useAuth } from '../../domains/auth/AuthContext'
 import { useState } from 'react'
 import bkLogo from '../../assets/bk.png'
 
-const NAV_ITEMS = [
+const ADMIN_NAV = [
   { path: '/dashboard',   icon: 'dashboard',                label: 'Tổng quan' },
   { path: '/gate-entry',  icon: 'login',                    label: 'Vận hành Cổng Vào' },
   { path: '/gate-exit',   icon: 'logout',                   label: 'Vận hành Cổng Ra' },
@@ -19,8 +19,16 @@ const NAV_ITEMS = [
   { path: '/profile',     icon: 'badge',                    label: 'Hồ sơ cá nhân' },
 ]
 
+const STAFF_NAV = [
+  { path: '/staff',          icon: 'dashboard', label: 'Tổng quan' },
+  { path: '/staff/gate-entry', icon: 'login',   label: 'Vận hành Cổng Vào' },
+  { path: '/staff/gate-exit', icon: 'logout',    label: 'Vận hành Cổng Ra' },
+  { path: '/staff/parking-map', icon: 'map',      label: 'Bản đồ' },
+  { path: '/staff/profile',   icon: 'badge',      label: 'Hồ sơ cá nhân' },
+]
+
 // Sidebar markup as a function that returns JSX – defined OUTSIDE the component
-function SidebarContent({ onLogout, onNavClick, collapsed }) {
+function SidebarContent({ onLogout, onNavClick, collapsed, items }) {
   return (
     <>
       {/* Logo */}
@@ -43,7 +51,7 @@ function SidebarContent({ onLogout, onNavClick, collapsed }) {
             Bảng chức năng
           </div>
         )}
-        {NAV_ITEMS.map(item => (
+        {items.map(item => (
           <NavLink key={item.path} to={item.path}
             className={({ isActive }) => `flex items-center rounded-xl text-sm font-bold transition-all duration-200 ${collapsed ? 'justify-center py-4 mb-2' : 'gap-3 px-3 py-3'} ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
             title={collapsed ? item.label : undefined}
@@ -94,7 +102,7 @@ export default function AdminLayout() {
 
       {/* ── DESKTOP SIDEBAR (visible ≥ 1024px) ── */}
       <aside style={sidebarStyle} id="desktop-sidebar">
-        <SidebarContent onLogout={handleLogout} onNavClick={() => {}} collapsed={collapsed} />
+        <SidebarContent onLogout={handleLogout} onNavClick={() => {}} collapsed={collapsed} items={auth?.role === 'staff' ? STAFF_NAV : ADMIN_NAV} />
       </aside>
 
       {/* ── MOBILE OVERLAY ── */}
@@ -130,7 +138,7 @@ export default function AdminLayout() {
               <span className="material-symbols-outlined" style={{ fontSize: 24 }}>{collapsed ? 'menu_open' : 'menu'}</span>
             </button>
             <h1 className="desktop-header-title" style={{ fontFamily: "Inter, sans-serif", fontSize: 20, fontWeight: 800, color: '#fff', margin: 0, whiteSpace: 'nowrap' }}>
-               {NAV_ITEMS.find(n => (location.pathname.startsWith(n.path)))?.label || 'Tổng quan'}
+               {(auth?.role === 'staff' ? STAFF_NAV : ADMIN_NAV).find(n => location.pathname === n.path || location.pathname.startsWith(n.path + '/'))?.label || 'Tổng quan'}
             </h1>
           </div>
 

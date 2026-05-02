@@ -19,6 +19,7 @@ import UserHistoryPage from './domains/activity/UserHistoryPage'
 import BKPayGatewayPage from './domains/payment/BKPayGatewayPage'
 import ProfilePage from './domains/auth/ProfilePage'
 import SignagePage from './domains/iot/SignagePage'
+import StaffDashboardPage from './domains/dashboard/StaffDashboardPage'
 function ProtectedAdmin({ children }) {
   const { auth, isAdmin } = useAuth()
   if (!auth) return <Navigate to="/login" replace />
@@ -32,10 +33,19 @@ function ProtectedUser({ children }) {
   return children
 }
 
-function RootRedirect() {
-  const { auth, isAdmin } = useAuth()
+function ProtectedStaff({ children }) {
+  const { auth, isStaff } = useAuth()
   if (!auth) return <Navigate to="/login" replace />
-  return <Navigate to={isAdmin ? '/dashboard' : '/user'} replace />
+  if (!isStaff) return <Navigate to="/user" replace />
+  return children
+}
+
+function RootRedirect() {
+  const { auth, isAdmin, isStaff } = useAuth()
+  if (!auth) return <Navigate to="/login" replace />
+  if (isAdmin) return <Navigate to="/dashboard" replace />
+  if (isStaff) return <Navigate to="/staff" replace />
+  return <Navigate to="/user" replace />
 }
 
 export default function App() {
@@ -58,6 +68,15 @@ export default function App() {
             <Route path="users"       element={<UsersPage />} />
             <Route path="profile"     element={<ProfilePage />} />
             <Route path="signage"     element={<SignagePage />} />
+          </Route>
+
+          {/* STAFF ROUTES */}
+          <Route path="/staff" element={<ProtectedStaff><AdminLayout /></ProtectedStaff>}>
+            <Route index element={<StaffDashboardPage />} />
+            <Route path="gate-entry" element={<GateEntryPage />} />
+            <Route path="gate-exit" element={<GateExitPage />} />
+            <Route path="parking-map" element={<ParkingMapPage />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
 
           {/* USER ROUTES */}
