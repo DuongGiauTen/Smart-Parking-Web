@@ -57,13 +57,19 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     await new Promise(r => setTimeout(r, 600))
-    const result = login(email, password)
-    if (result.success) {
-      if (result.role === 'admin') navigate('/dashboard', { replace: true })
-      else if (result.role === 'staff') navigate('/staff', { replace: true })
-      else navigate('/user', { replace: true })
-    } else {
-      setError('Email hoặc mật khẩu không đúng. Vui lòng thử lại.')
+
+    try {
+      const result = await login(email, password)
+      if (result.success) {
+        if (result.role === 'admin') navigate('/dashboard', { replace: true })
+        else if (result.role === 'staff') navigate('/staff', { replace: true })
+        else navigate('/user', { replace: true })
+        return
+      }
+      setError(result.error || 'Email hoặc mật khẩu không đúng. Vui lòng thử lại.')
+    } catch (err) {
+      setError(err?.message || 'Email hoặc mật khẩu không đúng. Vui lòng thử lại.')
+    } finally {
       setLoading(false)
     }
   }
