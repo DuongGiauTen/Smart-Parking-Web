@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { REGISTERED_USERS, parkingData } from './parkingData'
 
 const ENTRY_LOG = [
   ['09:42:15','51A-992.42','Sinh viên','Thành công','bg-green-100','text-green-700'],
@@ -12,26 +13,39 @@ export default function GateEntry() {
   const [demoState, setDemoState] = useState('normal') // normal, invalid, full, offline
   const [showIssueCard, setShowIssueCard] = useState(false)
   const [isBarrierOpen, setIsBarrierOpen] = useState(false)
+  const [scanCard, setScanCard] = useState('')
+  const [selectedUser, setSelectedUser] = useState(null)
+  const [entryMessage, setEntryMessage] = useState('Chờ quét thẻ vào...')
 
   const handleOpen = () => setIsBarrierOpen(true)
   const handleClose = () => setIsBarrierOpen(false)
 
+  const currentUser = selectedUser || REGISTERED_USERS[0]
   const statusConfig = {
-    normal:  { title: 'HỆ THỐNG ĐANG HOẠT ĐỘNG', color: 'bg-green-500', glow: 'shadow-green-500/50', icon: 'check_circle', bg: 'bg-gradient-to-r from-blue-900/95 to-blue-700/95', validateText: 'Cho phép vào', validateColor: 'text-green-600', plate: '51A - 992.42' },
+    normal:  { title: 'HỆ THỐNG ĐANG HOẠT ĐỘNG', color: 'bg-green-500', glow: 'shadow-green-500/50', icon: 'check_circle', bg: 'bg-gradient-to-r from-blue-900/95 to-blue-700/95', validateText: 'Cho phép vào', validateColor: 'text-green-600', plate: currentUser.vehicle || '51A - 992.42' },
     invalid: { title: 'CẢNH BÁO: THẺ KHÔNG HỢP LỆ', color: 'bg-red-500', glow: 'shadow-red-500/50', icon: 'gpp_bad', bg: 'bg-gradient-to-r from-red-900/95 to-red-700/95', validateText: 'TỪ CHỐI / THẺ SAI', validateColor: 'text-red-600', plate: '12C - 334.89' },
     full:    { title: 'THÔNG BÁO: BÃI XE ĐÃ ĐẦY', color: 'bg-orange-500', glow: 'shadow-orange-500/50', icon: 'warning', bg: 'bg-gradient-to-r from-orange-900/95 to-amber-700/95', validateText: 'Chờ xếp chỗ', validateColor: 'text-orange-600', plate: '51C - 002.31' },
     offline: { title: 'MẤT KẾT NỐI CAMERA & HẠ TẦNG', color: 'bg-slate-400', glow: 'shadow-slate-400/50', icon: 'wifi_off', bg: 'bg-gradient-to-r from-slate-800/95 to-slate-600/95', validateText: 'Lỗi đồng bộ', validateColor: 'text-slate-500', plate: '---' },
   }
   const config = statusConfig[demoState]
 
-  // Phím tắt để mô phỏng sự kiện chụp ảnh báo cáo
+  // Phím tắt để mô phỏng sự kiện chụp ảnh báo cáo và thẻ vào
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.altKey && e.key === '1') { e.preventDefault(); setDemoState('invalid'); }
-      if (e.altKey && e.key === '2') { e.preventDefault(); setDemoState('full'); }
-      if (e.altKey && e.key === '3') { e.preventDefault(); setDemoState('offline'); }
-      if (e.key === 'Escape') { e.preventDefault(); setDemoState('normal'); }
+      if (e.altKey && e.key === '1') { e.preventDefault(); setDemoState('invalid'); setSelectedUser(null); setScanCard(''); setEntryMessage('Chưa nhận dạng thẻ hợp lệ'); }
+      if (e.altKey && e.key === '2') { e.preventDefault(); setDemoState('full'); setSelectedUser(null); setScanCard(''); setEntryMessage('Bãi xe đầy, chờ vị trí trống'); }
+      if (e.altKey && e.key === '3') { e.preventDefault(); setDemoState('offline'); setSelectedUser(null); setScanCard(''); setEntryMessage('Mất kết nối hệ thống'); }
+      if (e.altKey && e.key === '4') {
+        e.preventDefault()
+        const user = REGISTERED_USERS[Math.floor(Math.random() * REGISTERED_USERS.length)]
+        const session = parkingData.createEntrySession(user)
+        setSelectedUser(user)
+        setScanCard(user.card)
+        setDemoState('normal')
+        setEntryMessage(`Thẻ ${user.card} hợp lệ. Xe ${user.vehicle} vào lúc ${session.timeIn}`)
+      }
+      if (e.key === 'Escape') { e.preventDefault(); setDemoState('normal'); setSelectedUser(null); setScanCard(''); setEntryMessage('Chờ quét thẻ vào...'); }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
@@ -136,9 +150,11 @@ export default function GateEntry() {
             <div className="relative">
                <span className={`material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-2xl ${demoState === 'invalid' ? 'text-red-400' : 'text-blue-500'} animate-pulse`}>contactless</span>
                <input autoFocus type="text" placeholder="Chờ tín hiệu từ thiết bị quét ngoại vi..." 
-                 defaultValue={demoState==='invalid' ? 'ERR-999-31X' : demoState==='offline' ? '' : 'STD-211-043'} 
+                 value={scanCard}
+                 onChange={(e) => setScanCard(e.target.value)}
                  className={`w-full pl-14 pr-4 py-4 rounded-xl text-lg font-bold font-mono outline-none transition-all ${demoState === 'invalid' ? 'bg-red-50 text-red-900 border-red-200 focus:border-red-400' : 'bg-slate-50 text-blue-900 border-slate-200 focus:border-blue-400 focus:bg-white focus:shadow-[0_0_0_4px_rgba(59,130,246,0.1)]'} border`} />
             </div>
+            <p className="mt-2 text-sm text-slate-500">{entryMessage}</p>
             {demoState === 'invalid' && <p className="mt-2 text-sm font-bold text-red-600 flex items-center gap-1"><span className="material-symbols-outlined text-sm">error</span> Thẻ bị khóa hoặc chưa được đăng ký trong hệ thống.</p>}
           </div>
 
@@ -157,7 +173,7 @@ export default function GateEntry() {
                   </div>
                   <div>
                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">Chủ Phương Tiện</p>
-                     <p className="font-headline font-bold text-xl text-slate-800 leading-tight">{demoState === 'invalid' ? 'Khách ngoài hệ thống' : 'Trần Minh Hoàng'}</p>
+                     <p className="font-headline font-bold text-xl text-slate-800 leading-tight">{demoState === 'invalid' ? 'Khách ngoài hệ thống' : currentUser.name}</p>
                   </div>
                </div>
 
@@ -165,27 +181,27 @@ export default function GateEntry() {
                <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-sm transition-shadow">
                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">badge</span> Mã số / Cán bộ</p>
-                     <p className="font-bold text-slate-700 text-sm">{demoState === 'invalid' ? '---' : '2110432'}</p>
+                     <p className="font-bold text-slate-700 text-sm">{demoState === 'invalid' ? '---' : currentUser.id}</p>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-sm transition-shadow">
                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">school</span> Nhóm đối tượng</p>
-                     <p className="font-bold text-slate-700 text-sm">{demoState === 'invalid' ? '---' : 'Sinh viên chính quy'}</p>
+                     <p className="font-bold text-slate-700 text-sm">{demoState === 'invalid' ? '---' : currentUser.group}</p>
                   </div>
                </div>
                
                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-sm transition-shadow">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">account_balance</span> Đơn vị / Khoa quản lý</p>
-                  <p className="font-bold text-slate-700 text-sm">{demoState === 'invalid' ? '---' : 'Khoa Khoa học và Kỹ thuật Máy tính'}</p>
+                  <p className="font-bold text-slate-700 text-sm">{demoState === 'invalid' ? '---' : currentUser.unit}</p>
                </div>
 
                <div className="grid grid-cols-2 gap-3">
                   <div className={`p-3 rounded-2xl border hover:shadow-sm transition-shadow ${demoState === 'invalid' ? 'bg-red-50 border-red-100 text-red-900' : 'bg-blue-50/50 border-blue-100 text-blue-900'}`}>
                      <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 flex items-center gap-1 ${demoState === 'invalid' ? 'text-red-400' : 'text-blue-500'}`}><span className="material-symbols-outlined text-[13px]">directions_car</span> Phương tiện</p>
-                     <p className="font-bold text-sm leading-tight">{demoState === 'invalid' ? 'Không xác định' : 'Ô tô (Sedan 4 chỗ)'}</p>
+                     <p className="font-bold text-sm leading-tight">{demoState === 'invalid' ? 'Không xác định' : currentUser.vehicleType}</p>
                   </div>
                   <div className={`p-3 rounded-2xl border hover:shadow-sm transition-shadow ${demoState === 'invalid' ? 'bg-slate-50 border-slate-100 text-slate-700' : 'bg-blue-50/50 border-blue-100 text-blue-900'}`}>
                      <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 flex items-center gap-1 ${demoState === 'invalid' ? 'text-slate-400' : 'text-blue-500'}`}><span className="material-symbols-outlined text-[13px]">history_toggle_off</span> Thời điểm vào</p>
-                     <p className="font-bold text-sm">{demoState === 'invalid' ? '--:--:--' : '09:42:15'}</p>
+                     <p className="font-bold text-sm">{demoState === 'invalid' ? '--:--:--' : currentUser.entryTime}</p>
                   </div>
                </div>
             </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { parkingData } from './parkingData'
 
 const EXIT_LOG = [
   ['09:20:01','29C-112.55','1h 45p','26,250','BKPay','Thành công','bg-green-100','text-green-700'],
@@ -11,9 +12,33 @@ export default function GateExit() {
   const [demoState, setDemoState] = useState('normal') // normal, open, offline
   const [showTempCard, setShowTempCard] = useState(false)
   const [isBarrierOpen, setIsBarrierOpen] = useState(false)
+  const [exitInput, setExitInput] = useState('')
+  const [scanResult, setScanResult] = useState(null)
+  const [statusMessage, setStatusMessage] = useState('Chưa quét thẻ')
+  const [isProcessing, setIsProcessing] = useState(false)
 
   const handleBarrier = () => setIsBarrierOpen(true)
   const handleClose = () => setIsBarrierOpen(false)
+
+  const handleExitScan = () => {
+    if (!exitInput.trim()) return
+    setIsProcessing(true)
+    setStatusMessage('Đang xử lý quét thẻ ra...')
+
+    const session = parkingData.getActiveSession(exitInput.trim())
+    if (!session) {
+      setScanResult(null)
+      setDemoState('normal')
+      setStatusMessage('Thẻ chưa vào bãi hoặc đã ra')
+    } else {
+      setScanResult(session)
+      setDemoState('open')
+      setStatusMessage(`Xe ${session.user.vehicle} ra thành công`)
+      parkingData.closeSession(exitInput.trim())
+    }
+
+    setIsProcessing(false)
+  }
 
   const statusConfig = {
     normal:  { title: 'KIỂM TRA THANH TOÁN', color: 'bg-orange-500', icon: 'payments', bg: 'bg-gradient-to-r from-orange-900/95 to-amber-700/95', validateText: 'Chưa đóng phí', plate: '51C - 002.31' },
@@ -106,7 +131,7 @@ export default function GateExit() {
              <div className="absolute bottom-6 left-6 z-20 flex gap-4 w-[calc(100%-48px)] justify-between items-end">
                <div className="bg-slate-900/70 backdrop-blur-xl border border-white/10 p-4 rounded-2xl shadow-2xl flex gap-5 items-center">
                  <div className="bg-white/95 px-5 py-2.5 rounded-xl shadow-inner border border-slate-300">
-                   <span className={`font-headline font-black text-3xl tracking-wider text-slate-800`}>{config.plate}</span>
+                   <span className={`font-headline font-black text-3xl tracking-wider text-slate-800`}>{scanResult?.user?.vehicle || config.plate}</span>
                  </div>
                  <div className="hidden sm:block">
                    <p className="text-xs text-white/70 font-bold uppercase tracking-wider mb-1">bóc tách lúc ra</p>
@@ -156,10 +181,27 @@ export default function GateExit() {
             </label>
             <div className="relative">
                <span className={`material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-2xl text-blue-500 animate-pulse`}>contactless</span>
-               <input autoFocus type="text" placeholder="Chờ tín hiệu từ thiết bị quét ngoại vi..." 
-                 defaultValue={demoState==='offline' ? '' : 'STD-211-043'} 
+               <input autoFocus type="text" placeholder="Nhập mã thẻ hoặc quét NFC..." 
+                 value={exitInput}
+                 onChange={(e) => setExitInput(e.target.value)}
                  className={`w-full pl-14 pr-4 py-4 rounded-xl text-lg font-bold font-mono outline-none transition-all border ${demoState === 'normal' ? 'bg-orange-50/50 border-orange-200 focus:border-orange-400 text-orange-900' : 'bg-slate-50 text-blue-900 border-slate-200 focus:border-blue-400 focus:bg-white focus:shadow-[0_0_0_4px_rgba(59,130,246,0.1)]'}`} />
             </div>
+            <div className="mt-4 flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={handleExitScan}
+                disabled={isProcessing || !exitInput.trim()}
+                className={`w-full sm:w-auto py-3 px-5 rounded-xl font-bold text-white transition ${isProcessing || !exitInput.trim() ? 'bg-slate-300 text-slate-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+              >
+                {isProcessing ? 'Đang xử lý...' : 'Xác nhận ra'}
+              </button>
+              <button
+                onClick={() => { setExitInput(''); setScanResult(null); setStatusMessage('Chưa quét thẻ'); setDemoState('normal'); }}
+                className="w-full sm:w-auto py-3 px-5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 transition"
+              >
+                Đặt lại
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-slate-500">Trạng thái: <span className="font-semibold text-slate-800">{statusMessage}</span></p>
           </div>
 
           {/* Vehicle Info Card */}
@@ -177,7 +219,7 @@ export default function GateExit() {
                   </div>
                   <div>
                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">Chủ Phương Tiện</p>
-                     <p className="font-headline font-bold text-xl text-slate-800 leading-tight">{demoState === 'offline' ? 'Chưa nhận dạng' : 'Trần Minh Hoàng'}</p>
+                     <p className="font-headline font-bold text-xl text-slate-800 leading-tight">{demoState === 'offline' ? 'Chưa nhận dạng' : scanResult?.user?.name || 'Chưa xác định'}</p>
                   </div>
                </div>
 
@@ -185,11 +227,11 @@ export default function GateExit() {
                <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-sm transition-shadow">
                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">badge</span> Mã số / Cán bộ</p>
-                     <p className="font-bold text-slate-700 text-sm">{demoState === 'offline' ? '---' : '2110432'}</p>
+                     <p className="font-bold text-slate-700 text-sm">{scanResult?.user?.id || (demoState === 'offline' ? '---' : '---')}</p>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-sm transition-shadow">
                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">school</span> Nhóm đối tượng</p>
-                     <p className="font-bold text-slate-700 text-sm">{demoState === 'offline' ? '---' : 'Sinh viên chính quy'}</p>
+                     <p className="font-bold text-slate-700 text-sm">{scanResult?.user?.group || (demoState === 'offline' ? '---' : '---')}</p>
                   </div>
                </div>
 
