@@ -1,55 +1,136 @@
 import { useState, useEffect } from 'react'
-import { REGISTERED_USERS, parkingData } from './parkingData'
-
-const ENTRY_LOG = [
-  ['09:42:15','51A-992.42','Sinh viên','Thành công','bg-green-100','text-green-700'],
-  ['09:38:50','29C-112.55','Cán bộ','Thành công','bg-green-100','text-green-700'],
-  ['09:35:22','77B-222.11','Khách','Thành công','bg-green-100','text-green-700'],
-  ['09:31:08','51F-444.99','Sinh viên','Biển lỗi','bg-yellow-100','text-yellow-700'],
-  ['09:28:01','60A-888.77','Cán bộ','Thành công','bg-green-100','text-green-700'],
-]
+import { mockDB } from '../../services/mockDB'
 
 export default function GateEntry() {
   const [demoState, setDemoState] = useState('normal') // normal, invalid, full, offline
   const [showIssueCard, setShowIssueCard] = useState(false)
   const [isBarrierOpen, setIsBarrierOpen] = useState(false)
   const [scanCard, setScanCard] = useState('')
-  const [selectedUser, setSelectedUser] = useState(null)
+  const [currentSession, setCurrentSession] = useState(null)
   const [entryMessage, setEntryMessage] = useState('Chờ quét thẻ vào...')
+  const [accessLog, setAccessLog] = useState([])
+  const [zones, setZones] = useState([])
+
+  useEffect(() => {
+    mockDB.init()
+    setZones(mockDB.getZones())
+    setAccessLog(mockDB.getAccessLog(10))
+  }, [])
 
   const handleOpen = () => setIsBarrierOpen(true)
   const handleClose = () => setIsBarrierOpen(false)
 
-  const currentUser = selectedUser || REGISTERED_USERS[0]
+  const processCardScan = (card) => {
+    if (demoState === 'offline') {
+      mockDB.addPendingSync({ action: 'ENTRY_ATTEMPT', card, timestamp: new Date().toISOString() })
+      return
+    }
+
+    const cardInfo = mockDB.validateCard(card)
+    if (!cardInfo) {
+      setDemoState('invalid')
+      setEntryMessage('Thẻ không được đăng ký trong hệ thống')
+      mockDB.logAccess('ENTRY', card, '---', 'INVALID_CARD')
+      return
+    }
+
+    const result = mockDB.createParkingSession(card)
+    if (!result.success) {
+      setDemoState('full')
+      setEntryMessage('Bãi xe đầy, chờ vị trí trống')
+      mockDB.logAccess('ENTRY', card, cardInfo.vehicle, 'ZONE_FULL')
+      return
+    }
+
+    setCurrentSession(result.session)
+    setDemoState('normal')
+    setEntryMessage(`Thẻ ${card} hợp lệ. Xe ${cardInfo.vehicle} vào lúc ${new Date(result.session.entryTime).toLocaleTimeString('vi-VN')}`)
+    setAccessLog(mockDB.getAccessLog(10))
+    setZones(mockDB.getZones())
+  }
+
   const statusConfig = {
-    normal:  { title: 'HỆ THỐNG ĐANG HOẠT ĐỘNG', color: 'bg-green-500', glow: 'shadow-green-500/50', icon: 'check_circle', bg: 'bg-gradient-to-r from-blue-900/95 to-blue-700/95', validateText: 'Cho phép vào', validateColor: 'text-green-600', plate: currentUser.vehicle || '51A - 992.42' },
-    invalid: { title: 'CẢNH BÁO: THẺ KHÔNG HỢP LỆ', color: 'bg-red-500', glow: 'shadow-red-500/50', icon: 'gpp_bad', bg: 'bg-gradient-to-r from-red-900/95 to-red-700/95', validateText: 'TỪ CHỐI / THẺ SAI', validateColor: 'text-red-600', plate: '12C - 334.89' },
-    full:    { title: 'THÔNG BÁO: BÃI XE ĐÃ ĐẦY', color: 'bg-orange-500', glow: 'shadow-orange-500/50', icon: 'warning', bg: 'bg-gradient-to-r from-orange-900/95 to-amber-700/95', validateText: 'Chờ xếp chỗ', validateColor: 'text-orange-600', plate: '51C - 002.31' },
-    offline: { title: 'MẤT KẾT NỐI CAMERA & HẠ TẦNG', color: 'bg-slate-400', glow: 'shadow-slate-400/50', icon: 'wifi_off', bg: 'bg-gradient-to-r from-slate-800/95 to-slate-600/95', validateText: 'Lỗi đồng bộ', validateColor: 'text-slate-500', plate: '---' },
+    normal:  {
+      title: 'HỆ THỐNG ĐANG HOẠT ĐỘNG',
+      color: 'bg-green-500',
+      icon: 'check_circle',
+      bg: 'bg-gradient-to-r from-blue-900/95 to-blue-700/95',
+      validateText: 'Cho phép vào',
+      validateColor: 'text-green-600',
+      plate: currentSession?.vehicle || '---'
+    },
+    invalid: {
+      title: 'CẢNH BÁO: THẺ KHÔNG HỢP LỆ',
+      color: 'bg-red-500',
+      icon: 'gpp_bad',
+      bg: 'bg-gradient-to-r from-red-900/95 to-red-700/95',
+      validateText: 'TỪ CHỐI / THẺ SAI',
+      validateColor: 'text-red-600',
+      plate: '---'
+    },
+    full:    {
+      title: 'THÔNG BÁO: BÃI XE ĐÃ ĐẦY',
+      color: 'bg-orange-500',
+      icon: 'warning',
+      bg: 'bg-gradient-to-r from-orange-900/95 to-amber-700/95',
+      validateText: 'Chờ xếp chỗ',
+      validateColor: 'text-orange-600',
+      plate: '---'
+    },
+    offline: {
+      title: 'MẤT KẾT NỐI CAMERA & HẠ TẦNG',
+      color: 'bg-slate-400',
+      icon: 'wifi_off',
+      bg: 'bg-gradient-to-r from-slate-800/95 to-slate-600/95',
+      validateText: 'Lỗi đồng bộ',
+      validateColor: 'text-slate-500',
+      plate: '---'
+    },
   }
   const config = statusConfig[demoState]
 
-  // Phím tắt để mô phỏng sự kiện chụp ảnh báo cáo và thẻ vào
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.altKey && e.key === '1') { e.preventDefault(); setDemoState('invalid'); setSelectedUser(null); setScanCard(''); setEntryMessage('Chưa nhận dạng thẻ hợp lệ'); }
-      if (e.altKey && e.key === '2') { e.preventDefault(); setDemoState('full'); setSelectedUser(null); setScanCard(''); setEntryMessage('Bãi xe đầy, chờ vị trí trống'); }
-      if (e.altKey && e.key === '3') { e.preventDefault(); setDemoState('offline'); setSelectedUser(null); setScanCard(''); setEntryMessage('Mất kết nối hệ thống'); }
+      if (e.altKey && e.key === '1') {
+        e.preventDefault()
+        setDemoState('invalid')
+        setScanCard('')
+        setCurrentSession(null)
+        setEntryMessage('Chưa nhận dạng thẻ hợp lệ')
+      }
+      if (e.altKey && e.key === '2') {
+        e.preventDefault()
+        setDemoState('full')
+        setScanCard('')
+        setCurrentSession(null)
+        setEntryMessage('Bãi xe đầy, chờ vị trí trống')
+      }
+      if (e.altKey && e.key === '3') {
+        e.preventDefault()
+        setDemoState('offline')
+        setScanCard('')
+        setCurrentSession(null)
+        setEntryMessage('Mất kết nối hệ thống')
+      }
       if (e.altKey && e.key === '4') {
         e.preventDefault()
-        const user = REGISTERED_USERS[Math.floor(Math.random() * REGISTERED_USERS.length)]
-        const session = parkingData.createEntrySession(user)
-        setSelectedUser(user)
-        setScanCard(user.card)
-        setDemoState('normal')
-        setEntryMessage(`Thẻ ${user.card} hợp lệ. Xe ${user.vehicle} vào lúc ${session.timeIn}`)
+        const cards = mockDB.getCardByNumber('USER_01') ? ['USER_01', 'USER_02', 'USER_03', 'USER_04'] : []
+        const randomCard = cards[Math.floor(Math.random() * cards.length)]
+        setScanCard(randomCard)
+        processCardScan(randomCard)
       }
-      if (e.key === 'Escape') { e.preventDefault(); setDemoState('normal'); setSelectedUser(null); setScanCard(''); setEntryMessage('Chờ quét thẻ vào...'); }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setDemoState('normal')
+        setScanCard('')
+        setCurrentSession(null)
+        setEntryMessage('Chờ quét thẻ vào...')
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [demoState])
 
   return (
     <div className="p-6 md:p-8 space-y-8 bg-slate-50 min-h-full font-inter relative">
@@ -124,7 +205,11 @@ export default function GateEntry() {
           
           {/* Stats Bar */}
           <div className="grid grid-cols-3 gap-4">
-             {[['Lượt xe vào hôm nay','342', 'directions_car'],['Xe chờ trong cổng', demoState === 'full' ? '12' : '3', 'hourglass_top'],['Cảnh báo/Lỗi', demoState === 'invalid' ? '1' : '0', 'notification_important']].map(([l,v,i]) => (
+             {[
+               ['Lượt xe vào hôm nay', mockDB.getAccessLog().filter(l => l.action === 'ENTRY').length.toString(), 'directions_car'],
+               ['Xe chờ trong cổng', demoState === 'full' ? '12' : '3', 'hourglass_top'],
+               ['Cảnh báo/Lỗi', mockDB.getAccessLog().filter(l => l.result !== 'SUCCESS').length.toString(), 'notification_important']
+             ].map(([l,v,i]) => (
                <div key={l} className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex items-center justify-between group hover:shadow-md transition-shadow">
                  <div>
                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{l}</p>
@@ -149,9 +234,18 @@ export default function GateEntry() {
             </label>
             <div className="relative">
                <span className={`material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-2xl ${demoState === 'invalid' ? 'text-red-400' : 'text-blue-500'} animate-pulse`}>contactless</span>
-               <input autoFocus type="text" placeholder="Chờ tín hiệu từ thiết bị quét ngoại vi..." 
+               <input autoFocus type="text" placeholder="Chờ tín hiệu từ thiết bị quét ngoại vi..."
                  value={scanCard}
-                 onChange={(e) => setScanCard(e.target.value)}
+                 onChange={(e) => {
+                   const val = e.target.value
+                   setScanCard(val)
+                   if (val && val.length > 0 && !val.includes('_')) {
+                     const cards = mockDB.getZones() ? [] : []
+                     if (mockDB.validateCard(val)) {
+                       processCardScan(val)
+                     }
+                   }
+                 }}
                  className={`w-full pl-14 pr-4 py-4 rounded-xl text-lg font-bold font-mono outline-none transition-all ${demoState === 'invalid' ? 'bg-red-50 text-red-900 border-red-200 focus:border-red-400' : 'bg-slate-50 text-blue-900 border-slate-200 focus:border-blue-400 focus:bg-white focus:shadow-[0_0_0_4px_rgba(59,130,246,0.1)]'} border`} />
             </div>
             <p className="mt-2 text-sm text-slate-500">{entryMessage}</p>
@@ -173,35 +267,35 @@ export default function GateEntry() {
                   </div>
                   <div>
                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">Chủ Phương Tiện</p>
-                     <p className="font-headline font-bold text-xl text-slate-800 leading-tight">{demoState === 'invalid' ? 'Khách ngoài hệ thống' : currentUser.name}</p>
+                     <p className="font-headline font-bold text-xl text-slate-800 leading-tight">{demoState === 'invalid' ? 'Khách ngoài hệ thống' : (currentSession?.vehicle ? mockDB.validateCard(currentSession.card)?.name : 'Chờ quét thẻ...')}</p>
                   </div>
                </div>
 
                {/* Detailed Metadata Grid */}
                <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-sm transition-shadow">
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">badge</span> Mã số / Cán bộ</p>
-                     <p className="font-bold text-slate-700 text-sm">{demoState === 'invalid' ? '---' : currentUser.id}</p>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">badge</span> Xe / Biển số</p>
+                     <p className="font-bold text-slate-700 text-sm">{demoState === 'invalid' ? '---' : (currentSession?.vehicle || '---')}</p>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-sm transition-shadow">
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">school</span> Nhóm đối tượng</p>
-                     <p className="font-bold text-slate-700 text-sm">{demoState === 'invalid' ? '---' : currentUser.group}</p>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">directions_car</span> Loại xe</p>
+                     <p className="font-bold text-slate-700 text-sm">{demoState === 'invalid' ? '---' : (currentSession?.vehicleType || '---')}</p>
                   </div>
                </div>
-               
+
                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-sm transition-shadow">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">account_balance</span> Đơn vị / Khoa quản lý</p>
-                  <p className="font-bold text-slate-700 text-sm">{demoState === 'invalid' ? '---' : currentUser.unit}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">location_on</span> Khu vực / Vị trí</p>
+                  <p className="font-bold text-slate-700 text-sm">{demoState === 'invalid' ? '---' : (currentSession?.zone || '---')}</p>
                </div>
 
                <div className="grid grid-cols-2 gap-3">
                   <div className={`p-3 rounded-2xl border hover:shadow-sm transition-shadow ${demoState === 'invalid' ? 'bg-red-50 border-red-100 text-red-900' : 'bg-blue-50/50 border-blue-100 text-blue-900'}`}>
-                     <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 flex items-center gap-1 ${demoState === 'invalid' ? 'text-red-400' : 'text-blue-500'}`}><span className="material-symbols-outlined text-[13px]">directions_car</span> Phương tiện</p>
-                     <p className="font-bold text-sm leading-tight">{demoState === 'invalid' ? 'Không xác định' : currentUser.vehicleType}</p>
+                     <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 flex items-center gap-1 ${demoState === 'invalid' ? 'text-red-400' : 'text-blue-500'}`}><span className="material-symbols-outlined text-[13px]">schedule</span> Thời điểm vào</p>
+                     <p className="font-bold text-sm">{demoState === 'invalid' ? '--:--:--' : (currentSession ? new Date(currentSession.entryTime).toLocaleTimeString('vi-VN') : '--:--:--')}</p>
                   </div>
                   <div className={`p-3 rounded-2xl border hover:shadow-sm transition-shadow ${demoState === 'invalid' ? 'bg-slate-50 border-slate-100 text-slate-700' : 'bg-blue-50/50 border-blue-100 text-blue-900'}`}>
-                     <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 flex items-center gap-1 ${demoState === 'invalid' ? 'text-slate-400' : 'text-blue-500'}`}><span className="material-symbols-outlined text-[13px]">history_toggle_off</span> Thời điểm vào</p>
-                     <p className="font-bold text-sm">{demoState === 'invalid' ? '--:--:--' : currentUser.entryTime}</p>
+                     <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 flex items-center gap-1 ${demoState === 'invalid' ? 'text-slate-400' : 'text-blue-500'}`}><span className="material-symbols-outlined text-[13px]">local_parking</span> Tình trạng</p>
+                     <p className="font-bold text-sm">{demoState === 'invalid' ? 'Từ chối' : (currentSession?.status || 'Chờ')}</p>
                   </div>
                </div>
             </div>
@@ -248,24 +342,29 @@ export default function GateEntry() {
               <thead>
                 <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-100">
                   <th className="p-4">Thời gian</th>
-                  <th className="p-4">Biển số nhận diện</th>
-                  <th className="p-4">Đối tượng</th>
-                  <th className="p-4">Hành động AI</th>
+                  <th className="p-4">Thẻ / Card</th>
+                  <th className="p-4">Biển số</th>
+                  <th className="p-4">Hành động</th>
+                  <th className="p-4">Kết quả</th>
                 </tr>
               </thead>
               <tbody>
-                {ENTRY_LOG.map(([time,plate,type,result,bc,tc]) => (
-                  <tr key={time+plate} className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors">
-                    <td className="p-4 font-mono text-slate-500 text-sm font-medium">{time}</td>
-                    <td className="p-4 font-headline font-bold text-slate-800">{plate}</td>
-                    <td className="p-4">
-                      <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold">{type}</span>
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-3 py-1 rounded-lg text-xs font-bold ${bc} ${tc}`}>{result}</span>
-                    </td>
-                  </tr>
-                ))}
+                {accessLog.map((log) => {
+                  const resultColor = log.result === 'SUCCESS' ? 'bg-green-100 text-green-700' : log.result === 'INVALID_CARD' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                  return (
+                    <tr key={log.timestamp + log.card} className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors">
+                      <td className="p-4 font-mono text-slate-500 text-sm font-medium">{new Date(log.timestamp).toLocaleTimeString('vi-VN')}</td>
+                      <td className="p-4 font-headline font-bold text-slate-800">{log.card}</td>
+                      <td className="p-4 text-slate-800">{log.plate}</td>
+                      <td className="p-4">
+                        <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold">{log.action}</span>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-3 py-1 rounded-lg text-xs font-bold ${resultColor}`}>{log.result}</span>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

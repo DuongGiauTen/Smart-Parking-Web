@@ -1,12 +1,5 @@
 import { useState, useEffect } from 'react'
-import { parkingData } from './parkingData'
-
-const EXIT_LOG = [
-  ['09:20:01','29C-112.55','1h 45p','26,250','BKPay','Thành công','bg-green-100','text-green-700'],
-  ['09:15:33','77B-222.11','0h 55p','8,250','Tiền mặt','Thành công','bg-green-100','text-green-700'],
-  ['09:08:22','55A-334.88','3h 12p','48,000','Thẻ NFC','Thành công','bg-green-100','text-green-700'],
-  ['09:01:05','51D-999.00','0h 30p','4,500','BKPay','Từ chối','bg-red-100','text-red-700'],
-]
+import { mockDB } from '../../services/mockDB'
 
 export default function GateExit() {
   const [demoState, setDemoState] = useState('normal') // normal, open, offline
@@ -16,6 +9,12 @@ export default function GateExit() {
   const [scanResult, setScanResult] = useState(null)
   const [statusMessage, setStatusMessage] = useState('Chưa quét thẻ')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [exitLog, setExitLog] = useState([])
+
+  useEffect(() => {
+    mockDB.init()
+    setExitLog(mockDB.getAccessLog(10).filter(log => log.action === 'EXIT'))
+  }, [])
 
   const handleBarrier = () => setIsBarrierOpen(true)
   const handleClose = () => setIsBarrierOpen(false)
@@ -25,16 +24,23 @@ export default function GateExit() {
     setIsProcessing(true)
     setStatusMessage('Đang xử lý quét thẻ ra...')
 
-    const session = parkingData.getActiveSession(exitInput.trim())
+    const session = mockDB.getActiveSession(exitInput.trim())
     if (!session) {
       setScanResult(null)
       setDemoState('normal')
       setStatusMessage('Thẻ chưa vào bãi hoặc đã ra')
+      mockDB.logAccess('EXIT', exitInput.trim(), '---', 'NO_ACTIVE_SESSION')
     } else {
-      setScanResult(session)
-      setDemoState('open')
-      setStatusMessage(`Xe ${session.user.vehicle} ra thành công`)
-      parkingData.closeSession(exitInput.trim())
+      const result = mockDB.endParkingSession(session.id)
+      if (result.success) {
+        setScanResult(session)
+        setDemoState('open')
+        setStatusMessage(`Xe ${session.vehicle} ra thành công. Phí: ${result.fee.toLocaleString('vi-VN')} VNĐ`)
+        setExitLog(mockDB.getAccessLog(10).filter(log => log.action === 'EXIT'))
+      } else {
+        setDemoState('normal')
+        setStatusMessage(result.error)
+      }
     }
 
     setIsProcessing(false)
@@ -219,36 +225,36 @@ export default function GateExit() {
                   </div>
                   <div>
                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">Chủ Phương Tiện</p>
-                     <p className="font-headline font-bold text-xl text-slate-800 leading-tight">{demoState === 'offline' ? 'Chưa nhận dạng' : scanResult?.user?.name || 'Chưa xác định'}</p>
+                     <p className="font-headline font-bold text-xl text-slate-800 leading-tight">{demoState === 'offline' ? 'Chưa nhận dạng' : scanResult ? mockDB.validateCard(scanResult.card)?.name : 'Chưa xác định'}</p>
                   </div>
                </div>
 
                {/* Detailed Metadata Grid */}
                <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-sm transition-shadow">
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">badge</span> Mã số / Cán bộ</p>
-                     <p className="font-bold text-slate-700 text-sm">{scanResult?.user?.id || (demoState === 'offline' ? '---' : '---')}</p>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">badge</span> Xe / Biển số</p>
+                     <p className="font-bold text-slate-700 text-sm">{scanResult?.vehicle || '---'}</p>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-sm transition-shadow">
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">school</span> Nhóm đối tượng</p>
-                     <p className="font-bold text-slate-700 text-sm">{scanResult?.user?.group || (demoState === 'offline' ? '---' : '---')}</p>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">schedule</span> Thời gian vào</p>
+                     <p className="font-bold text-slate-700 text-sm">{scanResult ? new Date(scanResult.entryTime).toLocaleTimeString('vi-VN') : '---'}</p>
                   </div>
                </div>
 
                <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-sm transition-shadow">
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">schedule</span> Thời gian gửi</p>
-                     <p className="font-bold text-slate-700 text-sm">{demoState === 'offline' ? '---' : demoState === 'open' ? '4h 10 phút' : '2h 15 phút'}</p>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">schedule</span> Thời gian ra</p>
+                     <p className="font-bold text-slate-700 text-sm">{demoState === 'open' && scanResult ? new Date(scanResult.exitTime).toLocaleTimeString('vi-VN') : '---'}</p>
                   </div>
                   <div className={`p-3 rounded-2xl border flex items-center justify-between hover:shadow-sm transition-shadow ${demoState === 'open' ? 'bg-green-50 border-green-200 text-green-900' : demoState === 'offline' ? 'bg-slate-50 border-slate-200 text-slate-400' : 'bg-orange-50 border-orange-200 text-orange-900 shadow-inner'}`}>
                      <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest mb-1 opacity-80">
                            {demoState === 'offline' ? 'TỔNG PHÍ' : demoState === 'open' ? 'ĐÃ TT' : 'TỔNG PHÍ (VNĐ)'}
                         </p>
-                        <p className={`font-bold text-lg leading-tight font-mono ${demoState === 'normal' ? 'text-2xl' : ''}`}>{demoState === 'offline' ? '0' : demoState === 'open' ? '0' : '30,000'}</p>
+                        <p className={`font-bold text-lg leading-tight font-mono ${demoState === 'normal' && scanResult ? 'text-2xl' : ''}`}>{demoState === 'offline' ? '0' : demoState === 'open' && scanResult ? scanResult.fee.toLocaleString('vi-VN') : scanResult?.fee ? scanResult.fee.toLocaleString('vi-VN') : '0'}</p>
                      </div>
                      {demoState === 'open' && <span className="material-symbols-outlined text-green-500 text-3xl">task_alt</span>}
-                     {demoState === 'normal' && <span className="material-symbols-outlined text-orange-500 text-2xl animate-pulse">payment</span>}
+                     {demoState === 'normal' && scanResult && <span className="material-symbols-outlined text-orange-500 text-2xl animate-pulse">payment</span>}
                   </div>
                </div>
             </div>
@@ -303,20 +309,25 @@ export default function GateExit() {
                 </tr>
               </thead>
               <tbody>
-                {EXIT_LOG.map(([time,plate,dur,fee,method,result,bc,tc]) => (
-                  <tr key={time+plate} className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors">
-                    <td className="p-4 font-mono text-slate-500 text-sm font-medium">{time}</td>
-                    <td className="p-4 font-headline font-bold text-slate-800">{plate}</td>
-                    <td className="p-4 text-sm text-slate-600 font-medium">{dur}</td>
-                    <td className="p-4 text-sm font-bold text-slate-800">{fee}</td>
-                    <td className="p-4">
-                      <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold">{method}</span>
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-3 py-1 rounded-lg text-xs font-bold ${bc} ${tc}`}>{result}</span>
-                    </td>
-                  </tr>
-                ))}
+                {exitLog.map((log) => {
+                  const session = mockDB.getSessionById(log.sessionId)
+                  const hours = session ? Math.ceil((new Date(session.exitTime) - new Date(session.entryTime)) / (1000 * 60 * 60)) : 0
+                  const resultColor = log.result === 'SUCCESS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                  return (
+                    <tr key={log.timestamp + log.card} className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors">
+                      <td className="p-4 font-mono text-slate-500 text-sm font-medium">{new Date(log.timestamp).toLocaleTimeString('vi-VN')}</td>
+                      <td className="p-4 font-headline font-bold text-slate-800">{log.plate}</td>
+                      <td className="p-4 text-sm text-slate-600 font-medium">{hours}h</td>
+                      <td className="p-4 text-sm font-bold text-slate-800">{session?.fee?.toLocaleString('vi-VN') || '0'}</td>
+                      <td className="p-4">
+                        <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold">BKPay</span>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-3 py-1 rounded-lg text-xs font-bold ${resultColor}`}>{log.result}</span>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

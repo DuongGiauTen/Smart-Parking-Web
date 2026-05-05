@@ -1,37 +1,30 @@
 // domains/auth/authService.js
-// Authentication API calls
+// Authentication with mocked backend using mockDB
 
-const API_BASE_URL = 'http://localhost:5000/api'
+import { mockDB } from '../../services/mockDB'
 
 export const authService = {
   login: async (email, password) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
-    if (!response.ok) {
-      throw new Error('Login failed');
+    const result = mockDB.authenticateUser(email, password)
+    if (!result.success) {
+      throw new Error('Login failed')
     }
-    return response.json();
+    const token = btoa(`${email}:${Date.now()}`)
+    return { success: true, user: result.user, token }
   },
 
   logout: async () => {
-    // For now, just resolve
     return Promise.resolve()
   },
 
   getCurrentUser: async (token) => {
-    const response = await fetch(`${API_BASE_URL}/auth/me`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error('Failed to get user');
+    try {
+      const [email] = atob(token).split(':')
+      const user = mockDB.getCurrentUser(email)
+      if (!user) throw new Error('User not found')
+      return { success: true, ...user }
+    } catch (e) {
+      throw new Error('Invalid token')
     }
-    return response.json();
   }
 }
