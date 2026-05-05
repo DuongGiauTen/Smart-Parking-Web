@@ -383,34 +383,114 @@ export default function GateEntry() {
                      <span className="material-symbols-outlined">close</span>
                    </button>
                  </div>
-                 
-                 <div className="space-y-5 mb-8">
-                   <div>
-                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Biển số tự động bóc tách</label>
-                     <input type="text" defaultValue={config.plate !== '---' ? config.plate : ''} placeholder="Đang chờ AI nhận dạng lại..." className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-headline font-bold text-slate-800 focus:border-blue-400 outline-none transition-colors" />
-                   </div>
-                   <div>
-                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Phân loại Dòng xe</label>
-                     <select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-700 outline-none focus:border-blue-400 cursor-pointer">
-                       <option>Ô tô con (Sedan / SUV)</option>
-                       <option>Xe máy / Mô tô</option>
-                       <option>Xe tải nhẹ / Xe giao hàng</option>
-                     </select>
-                   </div>
-                   
-                   <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex gap-3 text-blue-800 text-sm">
-                     <span className="material-symbols-outlined text-blue-500 mt-0.5" style={{fontSize: 20}}>info</span>
-                     <p className="leading-relaxed">Hệ thống sẽ ghi nhận phiên với mã chip thẻ <strong className="bg-blue-100 px-1 rounded">VITOR-0892</strong> và lập tức ra lệnh cho Barrier Mở khẩn cấp.</p>
-                   </div>
-                 </div>
 
-                 <button onClick={() => { setShowIssueCard(false); setIsBarrierOpen(true); }} className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white font-headline font-bold rounded-xl shadow-lg transition-all active:scale-95">
-                    Phê duyệt Phiên & Mở Cổng
-                 </button>
+                 <GuestTicketForm
+                   onSuccess={(ticket) => {
+                     setShowIssueCard(false)
+                     setIsBarrierOpen(true)
+                     setEntryMessage(`Thẻ tạm ${ticket.id} được phát hành cho khách`)
+                   }}
+                   plate={config.plate}
+                 />
               </div>
             </div>
          </div>
       )}
     </div>
+  )
+}
+
+function GuestTicketForm({ onSuccess, plate }) {
+  const [formData, setFormData] = useState({
+    plate: plate !== '---' ? plate : '',
+    vehicleType: 'Ô tô (Sedan / SUV)',
+    duration: 2,
+  })
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    setError('')
+
+    if (!formData.plate.trim()) {
+      setError('Vui lòng nhập biển số xe')
+      setIsSubmitting(false)
+      return
+    }
+
+    const ticket = mockDB.createGuestTicket(formData.plate, formData.vehicleType, parseInt(formData.duration))
+    mockDB.logAccess('GUEST_TICKET_ISSUED', `GUEST_${ticket.id}`, formData.plate, 'SUCCESS')
+
+    if (onSuccess) {
+      setTimeout(() => onSuccess(ticket), 300)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div>
+        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Biển số tự động bóc tách</label>
+        <input
+          type="text"
+          value={formData.plate}
+          onChange={(e) => setFormData({...formData, plate: e.target.value})}
+          placeholder="Đang chờ AI nhận dạng..."
+          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-headline font-bold text-slate-800 focus:border-blue-400 outline-none transition-colors"
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Phân loại Dòng xe</label>
+        <select
+          value={formData.vehicleType}
+          onChange={(e) => setFormData({...formData, vehicleType: e.target.value})}
+          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-700 outline-none focus:border-blue-400 cursor-pointer"
+        >
+          <option>Ô tô (Sedan / SUV)</option>
+          <option>Xe máy / Mô tô</option>
+          <option>Xe tải nhẹ / Xe giao hàng</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Thời gian gửi (giờ)</label>
+        <select
+          value={formData.duration}
+          onChange={(e) => setFormData({...formData, duration: e.target.value})}
+          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-700 outline-none focus:border-blue-400 cursor-pointer"
+        >
+          <option value="1">1 giờ</option>
+          <option value="2">2 giờ</option>
+          <option value="4">4 giờ</option>
+          <option value="8">8 giờ</option>
+          <option value="24">1 ngày</option>
+        </select>
+      </div>
+
+      <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex gap-3 text-blue-800 text-sm">
+        <span className="material-symbols-outlined text-blue-500 mt-0.5" style={{fontSize: 20}}>info</span>
+        <p className="leading-relaxed">Hệ thống sẽ tạo mã thẻ tạm duy nhất và lập tức ra lệnh cho Barrier Mở khẩn cấp cho khách.</p>
+      </div>
+
+      {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm font-medium">{error}</div>}
+
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex justify-between items-center">
+        <div>
+          <span className="text-xs font-bold text-blue-700 uppercase tracking-wide block mb-1">Tổng phí (VNĐ)</span>
+          <span className="font-headline font-bold text-2xl text-blue-900">{(mockDB.getPricing().guest.hourly * parseInt(formData.duration)).toLocaleString('vi-VN')}</span>
+        </div>
+        <span className="material-symbols-outlined text-4xl text-blue-300">payments</span>
+      </div>
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="w-full py-4 bg-slate-800 hover:bg-slate-900 disabled:bg-slate-400 text-white font-headline font-bold rounded-xl shadow-lg transition-all active:scale-95"
+      >
+        {isSubmitting ? 'Đang xử lý...' : 'Phát hành Thẻ tạm & Mở Cổng'}
+      </button>
+    </form>
   )
 }
