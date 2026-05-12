@@ -12,6 +12,7 @@ import RevenuePage from './domains/payment/RevenuePage'
 import UsersPage from './domains/user-management/UsersPage'
 import GateEntryPage from './domains/parking/GateEntryPage'
 import GateExitPage from './domains/parking/GateExitPage'
+import ParkingStatusPage from './domains/parking/ParkingStatusPage'
 import BKPayPage from './domains/payment/BKPayPage'
 import UserDashboardPage from './domains/dashboard/UserDashboardPage'
 import UserParkingPage from './domains/parking/UserParkingPage'
@@ -59,9 +60,10 @@ export default function App() {
           {/* ADMIN ROUTES */}
           <Route path="/" element={<ProtectedAdmin><AdminLayout /></ProtectedAdmin>}>
             <Route path="dashboard"   element={<AdminDashboardPage />} />
-            <Route path="gate-entry"  element={<GateEntryPage />} />
-            <Route path="gate-exit"   element={<GateExitPage />} />
-            <Route path="parking-map" element={<ParkingMapPage />} />
+            <Route path="gate-entry"      element={<GateEntryPage />} />
+            <Route path="gate-exit"       element={<GateExitPage />} />
+            <Route path="parking-status"  element={<ParkingStatusPage />} />
+            <Route path="parking-map"     element={<ParkingMapPage />} />
             <Route path="iot-devices" element={<IoTDevicesPage />} />
             <Route path="pricing"     element={<PricingPage />} />
             <Route path="revenue"     element={<RevenuePage />} />
@@ -73,9 +75,11 @@ export default function App() {
           {/* STAFF ROUTES */}
           <Route path="/staff" element={<ProtectedStaff><AdminLayout /></ProtectedStaff>}>
             <Route index element={<StaffDashboardPage />} />
-            <Route path="gate-entry" element={<GateEntryPage />} />
-            <Route path="gate-exit" element={<GateExitPage />} />
-            <Route path="parking-map" element={<ParkingMapPage />} />
+            <Route path="gate-entry"     element={<GateEntryPage />} />
+            <Route path="gate-exit"      element={<GateExitPage />} />
+            <Route path="parking-status" element={<ParkingStatusPage />} />
+            <Route path="parking-map"    element={<ParkingMapPage />} />
+
             <Route path="profile" element={<ProfilePage />} />
           </Route>
 

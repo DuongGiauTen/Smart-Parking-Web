@@ -8,9 +8,10 @@ import bkLogo from '../../assets/bk.png'
 
 const ADMIN_NAV = [
   { path: '/dashboard',   icon: 'dashboard',                label: 'Tổng quan' },
-  { path: '/gate-entry',  icon: 'login',                    label: 'Vận hành Cổng Vào' },
-  { path: '/gate-exit',   icon: 'logout',                   label: 'Vận hành Cổng Ra' },
-  { path: '/parking-map', icon: 'map',                      label: 'Bản đồ / IoT' },
+  { path: '/gate-entry',      icon: 'login',          label: 'Vận hành Cổng Vào' },
+  { path: '/gate-exit',       icon: 'logout',         label: 'Vận hành Cổng Ra' },
+  { path: '/parking-status',  icon: 'directions_car', label: 'Danh sách xe đỗ' },
+  { path: '/parking-map',     icon: 'map',            label: 'Bản đồ / IoT' },
   { path: '/signage',     icon: 'developer_board',          label: 'Biển báo Điện tử LED' },
   { path: '/iot-devices', icon: 'router',                   label: 'Quản lý Thiết bị' },
   { path: '/pricing',     icon: 'sell',                     label: 'Bảng giá / Gói cước' },
@@ -21,9 +22,10 @@ const ADMIN_NAV = [
 
 const STAFF_NAV = [
   { path: '/staff',          icon: 'dashboard', label: 'Tổng quan' },
-  { path: '/staff/gate-entry', icon: 'login',   label: 'Vận hành Cổng Vào' },
-  { path: '/staff/gate-exit', icon: 'logout',    label: 'Vận hành Cổng Ra' },
-  { path: '/staff/parking-map', icon: 'map',      label: 'Bản đồ' },
+  { path: '/staff/gate-entry',     icon: 'login',          label: 'Vận hành Cổng Vào' },
+  { path: '/staff/gate-exit',      icon: 'logout',         label: 'Vận hành Cổng Ra' },
+  { path: '/staff/parking-status', icon: 'directions_car', label: 'Danh sách xe đỗ' },
+  { path: '/staff/parking-map',    icon: 'map',            label: 'Bản đồ' },
   { path: '/staff/profile',   icon: 'badge',      label: 'Hồ sơ cá nhân' },
 ]
 

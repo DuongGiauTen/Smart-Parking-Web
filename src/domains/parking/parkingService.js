@@ -22,6 +22,17 @@ export const parkingService = {
       return { success: false, errorCode: 'EF1a', error: 'Thẻ không hợp lệ hoặc chưa đăng ký trong hệ thống' }
     }
 
+    // EF3: Duplicate entry — card already has an active session
+    const existingSession = mockDB.getActiveSession(cardId)
+    if (existingSession) {
+      mockDB.logAccess('ENTRY', cardId, cardInfo.vehicle, 'EF3_DUPLICATE')
+      return {
+        success: false,
+        errorCode: 'EF3',
+        error: `Xe ${cardInfo.vehicle} đang đỗ trong bãi. Vui lòng rời bãi qua cổng ra trước.`,
+      }
+    }
+
     // EF2a: Check zone capacity
     const capacity = mockDB.getZoneCapacity(zone)
     if (!capacity || capacity.available <= 0) {
@@ -61,8 +72,29 @@ export const parkingService = {
     return { success: true, session: result.session, fee: result.fee }
   },
 
-  // UC-02B Guest: Complete exit after payment callback [OK]
+  // UC-02B Guest (card): Complete exit after payment callback [OK]
   completeGuestExit: (sessionId) => {
     return mockDB.endParkingSession(sessionId, 'cash')
+  },
+
+  // UC-03: Guest ticket — calculate fee preview before payment
+  // Returns { success, error?, ticket?, fee? }
+  processGuestTicketExit: (ticketCode) => {
+    const ticket = mockDB.getGuestTicket(ticketCode)
+    if (!ticket || ticket.status !== 'active') {
+      return { success: false, error: 'Mã thẻ tạm không hợp lệ hoặc đã hết hiệu lực' }
+    }
+    const now = new Date()
+    const hours = Math.max(1, Math.ceil((now - new Date(ticket.createdAt)) / (1000 * 60 * 60)))
+    const fee = mockDB.getPricing().guest.hourly * hours
+    return { success: true, ticket, fee }
+  },
+
+  // UC-03: Complete guest ticket exit after payment — expires ticket, frees slot
+  completeGuestTicketExit: (ticketCode) => {
+    const ticket = mockDB.expireGuestTicket(ticketCode)
+    if (!ticket) return { success: false, error: 'Ticket not found' }
+    mockDB.logAccess('EXIT', ticket.id, ticket.plate, 'SUCCESS')
+    return { success: true, ticket }
   },
 }

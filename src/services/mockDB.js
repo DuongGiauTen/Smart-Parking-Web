@@ -38,8 +38,14 @@ const DEFAULT_DB = {
   registeredCards: [
     { card: 'USER_01', name: 'Trần Minh Hoàng', group: 'Sinh viên chính quy', unit: 'Khoa CNTT', vehicle: '51A - 992.42', vehicleType: 'Ô tô (Sedan)', role: 'user' },
     { card: 'USER_02', name: 'Lê Thị Mai', group: 'Giảng viên', unit: 'Khoa CNTT', vehicle: '29C - 112.55', vehicleType: 'Ô tô (SUV)', role: 'user' },
-    { card: 'USER_03', name: 'Phạm Văn Cường', group: 'Nhân viên an ninh', unit: 'Ban QL Bãi xe', vehicle: '77B - 222.11', vehicleType: 'Xe máy', role: 'staff' },
+    { card: 'USER_03', name: 'Phạm Công Võ', group: 'Nhân viên an ninh', unit: 'Ban QL Bãi xe', vehicle: '77B - 222.11', vehicleType: 'Xe máy', role: 'staff' },
     { card: 'USER_04', name: 'Đỗ Kim Ngân', group: 'Khách vãng lai', unit: 'Phòng đón tiếp', vehicle: '60A - 888.77', vehicleType: 'Xe tải nhẹ', role: 'guest' },
+    { card: 'USER_05', name: 'Nguyễn Văn An', group: 'Sinh viên chính quy', unit: 'Khoa Cơ khí', vehicle: '43A - 556.78', vehicleType: 'Xe máy', role: 'user' },
+    { card: 'USER_06', name: 'Trương Thị Bích', group: 'Giảng viên', unit: 'Khoa Điện - Điện tử', vehicle: '51G - 234.56', vehicleType: 'Ô tô (Sedan)', role: 'user' },
+    { card: 'USER_07', name: 'Hoàng Minh Tuấn', group: 'Cán bộ hành chính', unit: 'Phòng Đào tạo', vehicle: '29B - 789.01', vehicleType: 'Ô tô (Sedan)', role: 'staff' },
+    { card: 'USER_08', name: 'Vũ Thị Lan', group: 'Sinh viên chính quy', unit: 'Khoa Xây dựng', vehicle: '51F - 345.67', vehicleType: 'Xe máy', role: 'user' },
+    { card: 'USER_09', name: 'Bùi Quốc Hùng', group: 'Nghiên cứu sinh', unit: 'Khoa Vật lý ứng dụng', vehicle: '51K - 456.78', vehicleType: 'Ô tô (SUV)', role: 'user' },
+    { card: 'USER_10', name: 'Phan Thị Cẩm Tú', group: 'Khách vãng lai', unit: 'Đối tác hợp tác', vehicle: '79A - 567.89', vehicleType: 'Xe máy', role: 'guest' },
   ],
   zones: [
     { id: 'zone_a1', name: 'Khu A1', capacity: 100, occupied: 42, type: 'car' },
@@ -231,17 +237,22 @@ export const mockDB = {
   getAllSessions: () => [...db.parkingSessions],
 
   // Guest temporary tickets (UC-03)
-  createGuestTicket: (plate, vehicleType, duration = 2) => {
+  createGuestTicket: (plate, vehicleType, zone = 'zone_a1') => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    const rand = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
     const ticket = {
-      id: `GUEST_${Date.now()}`,
+      id: `TEMP-${rand}`,
       plate,
       vehicleType,
-      duration,
+      zone,
       createdAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + duration * 60 * 60 * 1000).toISOString(),
+      exitTime: null,
       status: 'active',
-      fee: db.pricing.guest.hourly * duration,
+      fee: 0, // calculated on exit based on actual duration
     }
+    // Increment zone slot
+    const zone_info = db.zones.find(z => z.id === zone)
+    if (zone_info) zone_info.occupied++
     db.guestTickets.push(ticket)
     saveDB()
     return ticket
@@ -251,10 +262,19 @@ export const mockDB = {
     return db.guestTickets.find(t => t.id === ticketId)
   },
 
+  getAllGuestTickets: () => [...db.guestTickets],
+
   expireGuestTicket: (ticketId) => {
     const ticket = db.guestTickets.find(t => t.id === ticketId)
     if (ticket) {
+      ticket.exitTime = new Date().toISOString()
       ticket.status = 'expired'
+      // Calculate actual fee based on time parked
+      const hours = Math.max(1, Math.ceil((new Date(ticket.exitTime) - new Date(ticket.createdAt)) / (1000 * 60 * 60)))
+      ticket.fee = db.pricing.guest.hourly * hours
+      // Free zone slot
+      const zone_info = db.zones.find(z => z.id === ticket.zone)
+      if (zone_info) zone_info.occupied = Math.max(0, zone_info.occupied - 1)
       saveDB()
     }
     return ticket
