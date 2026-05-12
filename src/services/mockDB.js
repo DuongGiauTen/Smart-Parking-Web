@@ -11,6 +11,7 @@ const DEFAULT_DB = {
       name: 'Admin HCMUT',
       title: 'Quản trị viên hệ thống',
       balance: 500000,
+      unpaidBalance: 0,
     },
     'user@hcmut.edu.vn': {
       email: 'user@hcmut.edu.vn',
@@ -21,6 +22,7 @@ const DEFAULT_DB = {
       vehicle: '51A - 992.42',
       card: 'USER_01',
       balance: 150000,
+      unpaidBalance: 0,
     },
     'staff@hcmut.edu.vn': {
       email: 'staff@hcmut.edu.vn',
@@ -28,7 +30,9 @@ const DEFAULT_DB = {
       role: 'staff',
       name: 'Phạm Công Võ',
       title: 'Nhân viên bãi đậu xe',
+      card: 'USER_03',
       balance: 0,
+      unpaidBalance: 0,
     },
   },
   registeredCards: [
@@ -136,7 +140,7 @@ export const mockDB = {
     return { success: true, session }
   },
 
-  endParkingSession: (sessionId) => {
+  endParkingSession: (sessionId, paymentMethod = 'cash') => {
     const session = db.parkingSessions.find(s => s.id === sessionId)
     if (!session || session.status !== 'active') {
       return { success: false, error: 'Session not found or already closed' }
@@ -144,10 +148,11 @@ export const mockDB = {
 
     session.exitTime = new Date().toISOString()
     session.status = 'completed'
+    session.paymentMethod = paymentMethod
 
     const entryTime = new Date(session.entryTime)
     const exitTime = new Date(session.exitTime)
-    const hours = Math.ceil((exitTime - entryTime) / (1000 * 60 * 60))
+    const hours = Math.max(1, Math.ceil((exitTime - entryTime) / (1000 * 60 * 60)))
 
     const pricing = db.pricing[session.userRole] || db.pricing.guest
     session.fee = pricing.hourly * hours
@@ -160,6 +165,59 @@ export const mockDB = {
     mockDB.logAccess('EXIT', session.card, session.vehicle, 'SUCCESS', sessionId)
 
     return { success: true, session, fee: session.fee }
+  },
+
+  // Open a new session without re-validating (validation done by service layer)
+  openParkingSession: (cardInfo, zone = 'zone_a1') => {
+    const zone_info = db.zones.find(z => z.id === zone)
+    if (!zone_info) return { success: false, error: 'Zone not found' }
+
+    const session = {
+      id: `SESSION_${Date.now()}`,
+      card: cardInfo.card,
+      vehicle: cardInfo.vehicle,
+      vehicleType: cardInfo.vehicleType,
+      zone,
+      entryTime: new Date().toISOString(),
+      exitTime: null,
+      fee: 0,
+      status: 'active',
+      userRole: cardInfo.role,
+    }
+
+    db.parkingSessions.push(session)
+    zone_info.occupied++
+    saveDB()
+
+    mockDB.logAccess('ENTRY', cardInfo.card, cardInfo.vehicle, 'SUCCESS', session.id)
+
+    return { success: true, session }
+  },
+
+  // Create a session in offline mode — no validation, no capacity check (AF2)
+  openParkingSessionOffline: (cardId, cardInfo = null, zone = 'zone_a1') => {
+    const info = cardInfo || { card: cardId, vehicle: 'UNKNOWN', vehicleType: 'Không xác định', role: 'guest' }
+
+    const session = {
+      id: `SESSION_OFF_${Date.now()}`,
+      card: cardId,
+      vehicle: info.vehicle,
+      vehicleType: info.vehicleType,
+      zone,
+      entryTime: new Date().toISOString(),
+      exitTime: null,
+      fee: 0,
+      status: 'active',
+      userRole: info.role,
+      isOffline: true,
+    }
+
+    db.parkingSessions.push(session)
+    saveDB()
+
+    mockDB.addPendingSync({ action: 'ENTRY', card: cardId, vehicle: info.vehicle, sessionId: session.id })
+
+    return { success: true, session }
   },
 
   getActiveSession: (card) => {
@@ -236,6 +294,22 @@ export const mockDB = {
   calculateFee: (userRole, hours) => {
     const pricing = db.pricing[userRole] || db.pricing.guest
     return pricing.hourly * hours
+  },
+
+  // Find user linked to a registered card
+  getUserByCard: (cardId) => {
+    return Object.values(db.users).find(u => u.card === cardId) || null
+  },
+
+  // Add to unpaid balance of the user who owns this card
+  addUnpaidBalance: (cardId, amount) => {
+    const user = Object.values(db.users).find(u => u.card === cardId)
+    if (user) {
+      user.unpaidBalance = (user.unpaidBalance || 0) + amount
+      saveDB()
+      return user.unpaidBalance
+    }
+    return null
   },
 
   // User balance (for BK-PAY)

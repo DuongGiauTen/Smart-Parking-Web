@@ -1,62 +1,68 @@
 // domains/parking/parkingService.js
-// Parking management API calls
+// Service layer for gate operations — single source of truth is mockDB
+import { mockDB } from '../../services/mockDB'
 
-const API_BASE_URL = 'http://localhost:5000/api'
+const DEFAULT_ZONE = 'zone_a1'
 
 export const parkingService = {
-  getParkingSpots: async () => {
-    // Mock parking spots data
-    return Promise.resolve([
-      { id: 1, spot: 'A01', status: 'available', type: 'car' },
-      { id: 2, spot: 'A02', status: 'occupied', type: 'car', vehicle: '29A-12345' },
-      { id: 3, spot: 'B01', status: 'available', type: 'motorcycle' },
-      { id: 4, spot: 'B02', status: 'reserved', type: 'motorcycle' },
-    ])
+  // UC-02A: Entry flow
+  // Returns { success, errorCode?, error?, session?, cardInfo?, isOffline? }
+  processEntry: (cardId, isSystemOnline = true, zone = DEFAULT_ZONE) => {
+    // AF2: Offline — bypass SSO & capacity checks, create local session, open barrier
+    if (!isSystemOnline) {
+      const cardInfo = mockDB.validateCard(cardId)
+      const result = mockDB.openParkingSessionOffline(cardId, cardInfo, zone)
+      return { success: true, session: result.session, cardInfo, isOffline: true }
+    }
+
+    // EF1a: Validate card via SSO
+    const cardInfo = mockDB.validateCard(cardId)
+    if (!cardInfo) {
+      mockDB.logAccess('ENTRY', cardId, '---', 'EF1a_INVALID_CARD')
+      return { success: false, errorCode: 'EF1a', error: 'Thẻ không hợp lệ hoặc chưa đăng ký trong hệ thống' }
+    }
+
+    // EF2a: Check zone capacity
+    const capacity = mockDB.getZoneCapacity(zone)
+    if (!capacity || capacity.available <= 0) {
+      mockDB.logAccess('ENTRY', cardId, cardInfo.vehicle, 'EF2a_ZONE_FULL')
+      return { success: false, errorCode: 'EF2a', error: 'Bãi xe đã đầy, không còn vị trí trống' }
+    }
+
+    // Success: open session, decrement slot
+    const result = mockDB.openParkingSession(cardInfo, zone)
+    return { success: true, session: result.session, cardInfo }
   },
 
-  getParkingHistory: async (userId) => {
-    // Mock parking history
-    return Promise.resolve([
-      {
-        id: 1,
-        spot: 'A01',
-        vehicle: '29A-12345',
-        entryTime: '2024-01-15T08:00:00Z',
-        exitTime: '2024-01-15T17:00:00Z',
-        duration: '9 hours',
-        cost: 45000
-      },
-      {
-        id: 2,
-        spot: 'B02',
-        vehicle: '29A-67890',
-        entryTime: '2024-01-14T09:00:00Z',
-        exitTime: '2024-01-14T16:00:00Z',
-        duration: '7 hours',
-        cost: 35000
-      }
-    ])
+  // UC-02B: Exit — calculate fee and determine routing (member vs guest)
+  // Returns { success, error?, session?, fee?, cardInfo?, isGuest? }
+  processExit: (cardId) => {
+    const session = mockDB.getActiveSession(cardId)
+    if (!session) {
+      return { success: false, error: 'Thẻ chưa vào bãi hoặc phiên đã kết thúc' }
+    }
+
+    const cardInfo = mockDB.validateCard(cardId)
+    const now = new Date()
+    const hours = Math.max(1, Math.ceil((now - new Date(session.entryTime)) / (1000 * 60 * 60)))
+    const pricing = mockDB.getPricing()
+    const rolePricing = pricing[session.userRole] || pricing.guest
+    const fee = rolePricing.hourly * hours
+    const isGuest = session.userRole === 'guest'
+
+    return { success: true, session, fee, cardInfo, isGuest }
   },
 
-  enterParking: async (spotId, vehicleNumber) => {
-    // Mock entry
-    return Promise.resolve({
-      success: true,
-      ticket: {
-        id: Date.now(),
-        spot: spotId,
-        vehicle: vehicleNumber,
-        entryTime: new Date().toISOString()
-      }
-    })
+  // UC-02B Member: Ghi nợ tự động — end session and add fee to unpaidBalance
+  completeMemberExit: (sessionId, cardId) => {
+    const result = mockDB.endParkingSession(sessionId, 'debt')
+    if (!result.success) return result
+    mockDB.addUnpaidBalance(cardId, result.fee)
+    return { success: true, session: result.session, fee: result.fee }
   },
 
-  exitParking: async (ticketId) => {
-    // Mock exit
-    return Promise.resolve({
-      success: true,
-      cost: 45000,
-      duration: '9 hours'
-    })
-  }
+  // UC-02B Guest: Complete exit after payment callback [OK]
+  completeGuestExit: (sessionId) => {
+    return mockDB.endParkingSession(sessionId, 'cash')
+  },
 }
