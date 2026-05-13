@@ -15,6 +15,7 @@ const DEFAULT_DB = {
     },
     'user@hcmut.edu.vn': {
       email: 'user@hcmut.edu.vn',
+      contactEmail: 'duongtranminh253@gmail.com',
       password: 'user123',
       role: 'user',
       name: 'Trần Minh Dương',
@@ -330,6 +331,48 @@ export const mockDB = {
       return user.unpaidBalance
     }
     return null
+  },
+
+  // Get sessions with unpaid debt for a user (by email)
+  getDebtSessions: (email) => {
+    const user = db.users[email]
+    if (!user || !user.card) return []
+    return db.parkingSessions.filter(s => s.card === user.card && s.status === 'completed' && s.paymentMethod === 'debt')
+  },
+
+  // Mark a completed debt session as paid, reduce unpaidBalance
+  markSessionPaid: (sessionId, email) => {
+    const session = db.parkingSessions.find(s => s.id === sessionId)
+    if (!session || session.paymentMethod !== 'debt') return false
+    session.paymentMethod = 'paid'
+    const user = db.users[email]
+    if (user) {
+      user.unpaidBalance = Math.max(0, (user.unpaidBalance || 0) - session.fee)
+    }
+    saveDB()
+    return true
+  },
+
+  // Get all completed sessions (paid + debt) for transaction history
+  getCompletedSessions: (email) => {
+    const user = db.users[email]
+    if (!user || !user.card) return []
+    return db.parkingSessions
+      .filter(s => s.card === user.card && s.status === 'completed')
+      .slice(-20)
+      .reverse()
+  },
+
+  // Get user's card info
+  getUserCard: (email) => {
+    const user = db.users[email]
+    return user?.card || null
+  },
+
+  // Get user's contact email (may differ from login email)
+  getContactEmail: (email) => {
+    const user = db.users[email]
+    return user?.contactEmail || email
   },
 
   // User balance (for BK-PAY)

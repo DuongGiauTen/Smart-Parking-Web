@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import bkLogo from '../../assets/bk.png'
+
+const BACKEND_URL = 'http://localhost:5000'
 
 export default function BKPayGateway() {
   const { auth } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
-  const amount = searchParams.get('amount') || '38,750'
-  const txId = searchParams.get('id') || '#PK-10294'
+  const amount = searchParams.get('amount') || '0'
+  const txId = searchParams.get('id') || ''
+  const sessionData = location.state?.sessionData || {}
   
   // States: 'initialize', 'confirm', 'processing', 'success', 'error', 'cancelled', 'infra_error'
   const [step, setStep] = useState('initialize')
@@ -34,17 +38,38 @@ export default function BKPayGateway() {
 
   const handleExecute = (targetState) => {
     setStep('processing')
-    setTimeout(() => {
+    setTimeout(async () => {
+      if (targetState === 'success') {
+        // Send email confirmation (fire-and-forget, don't block on failure)
+        try {
+          await fetch(`${BACKEND_URL}/api/email/send-payment-confirmation`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: sessionData.sessionId || txId,
+              amount: sessionData.amount || amount,
+              plate: sessionData.plate,
+              zone: sessionData.zone,
+              entryTime: sessionData.entryTime,
+              exitTime: sessionData.exitTime,
+              duration: sessionData.duration,
+              userName: sessionData.userName || auth?.name,
+              userEmail: sessionData.userEmail || auth?.email,
+            }),
+          })
+        } catch (e) {
+          console.warn('Email API unavailable:', e.message)
+        }
+      }
       setStep(targetState)
     }, 1500)
   }
 
-  // Helper for student info (mocking based on auth or default)
   const studentInfo = {
-    name: auth?.name || 'Trần Minh Hoàng',
-    id: '2110432',
+    name: sessionData.userName || auth?.name || 'Trần Minh Dương',
+    id: '2310609',
     faculty: 'Khoa Khoa học và Kỹ thuật Máy tính',
-    email: auth?.email || 'hoang.tranminh@hcmut.edu.vn'
+    email: sessionData.userEmail || auth?.email || 'user@hcmut.edu.vn'
   }
 
   const renderContent = () => {
@@ -183,7 +208,7 @@ export default function BKPayGateway() {
                </div>
             </div>
 
-            <button onClick={() => navigate('/user/pay')} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2">
+            <button onClick={() => navigate('/user/pay', { state: { paidSessionId: sessionData.sessionId || txId } })} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2">
               <span className="material-symbols-outlined text-[20px]">arrow_back</span>
               Quay về ứng dụng
             </button>
