@@ -2,9 +2,9 @@
 // USER LAYOUT - Desktop Sidebar + TopNav
 // ============================================================
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../AuthContext'
+import { useAuth } from '../../domains/auth/AuthContext'
 import { useState } from 'react'
-import bkLogo from '../assets/bk.png'
+import bkLogo from '../../assets/bk.png'
 
 const USER_NAV = [
   { path: '/user',         icon: 'dashboard',               label: 'Tổng quan', exact: true },

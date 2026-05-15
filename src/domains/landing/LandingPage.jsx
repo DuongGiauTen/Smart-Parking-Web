@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom'
-import bkLogo from '../assets/bk.png';
+import bkLogo from '../../assets/bk.png';
 
 export default function Landing() {
   return (
